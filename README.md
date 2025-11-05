@@ -1,73 +1,185 @@
-# Welcome to your Lovable project
+# IBAN Scanner - ماسح الآيبان 🔍
 
-## Project info
+<div dir="rtl">
 
-**URL**: https://lovable.dev/projects/37bfc874-b316-493e-8397-12d9ce806f26
+تطبيق أندرويد احترافي باللغة العربية لاستخراج والتحقق من رموز IBAN عبر الكاميرا مع دعم الحفظ والمشاركة.
 
-## How can I edit this code?
+## ✨ الميزات
 
-There are several ways of editing your application.
+### 🎯 المميزات الأساسية
+- **مسح IBAN**: استخراج رقم IBAN من الصور باستخدام OCR
+- **التحقق التلقائي**: خوارزمية mod97 للتحقق من صحة IBAN
+- **واجهة عربية**: تصميم RTL كامل بخط Cairo
+- **حفظ محلي**: تخزين آمن للسجلات على الجهاز
+- **مشاركة وتصدير**: مشاركة النصوص وتصدير CSV
 
-**Use Lovable**
+### 📸 طرق المسح
+- التقاط صورة مباشرة بالكاميرا
+- رفع صورة من المعرض
+- معالجة تلقائية للصورة
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/37bfc874-b316-493e-8397-12d9ce806f26) and start prompting.
+### ✅ التحقق الذكي
+- دعم 50+ دولة
+- كشف الأخطاء مع رسائل واضحة
+- عرض رمز الدولة والطول المتوقع
+- إمكانية التعديل اليدوي
 
-Changes made via Lovable will be committed automatically to this repo.
+### 💾 إدارة السجلات
+- حفظ IBAN مع اسم المالك
+- البحث في السجلات
+- تصفية حسب الحالة
+- تصدير CSV للبيانات
 
-**Use your preferred IDE**
+## 🚀 البدء السريع
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+### متطلبات التشغيل
+- Node.js 18+
+- npm أو bun
+- Android Studio (للبناء كـ APK)
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+### التثبيت المحلي
+```bash
+# استنساخ المشروع
+git clone [YOUR_REPO_URL]
+cd iban-scanner
 
-Follow these steps:
+# تثبيت الاعتماديات
+npm install
 
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
-
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
-
-# Step 3: Install the necessary dependencies.
-npm i
-
-# Step 4: Start the development server with auto-reloading and an instant preview.
+# تشغيل على المتصفح
 npm run dev
 ```
 
-**Edit a file directly in GitHub**
+### تحويل لتطبيق أندرويد
+```bash
+# بناء المشروع
+npm run build
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+# إضافة منصة أندرويد
+npx cap add android
 
-**Use GitHub Codespaces**
+# مزامنة الملفات
+npx cap sync android
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+# فتح في Android Studio
+npx cap open android
+```
 
-## What technologies are used for this project?
+**📖 دليل شامل**: راجع ملف `CAPACITOR_SETUP.md` للتعليمات الكاملة
 
-This project is built with:
+## 🛠️ التقنيات المستخدمة
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+- **Frontend**: React 18 + TypeScript
+- **UI**: shadcn/ui + Tailwind CSS
+- **OCR**: Tesseract.js
+- **Mobile**: Capacitor
+- **Storage**: LocalStorage API
+- **Fonts**: Cairo Arabic Font
 
-## How can I deploy this project?
+## 📱 واجهة المستخدم
 
-Simply open [Lovable](https://lovable.dev/projects/37bfc874-b316-493e-8397-12d9ce806f26) and click on Share -> Publish.
+### الصفحة الرئيسية
+- زر المسح الرئيسي
+- عرض السجلات الأخيرة
+- معلومات سريعة عن التطبيق
 
-## Can I connect a custom domain to my Lovable project?
+### شاشة المسح
+- إطار توجيهي للكاميرا
+- شريط تقدم OCR
+- نصائح للحصول على أفضل نتيجة
 
-Yes, you can!
+### شاشة النتيجة
+- عرض IBAN مع حالة الصحة
+- إمكانية التعديل
+- حقل اسم المالك
+- أزرار نسخ/مشاركة/حفظ
 
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
+### قائمة السجلات
+- عرض جميع السجلات
+- بحث وتصفية
+- حذف فردي
+- تصدير CSV
 
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+## 🔐 الأمان والخصوصية
+
+- ✅ **خصوصية تامة**: لا يتم إرسال أي بيانات للخوادم
+- ✅ **تخزين محلي**: جميع البيانات على جهازك فقط
+- ✅ **بدون اتصال**: OCR والتحقق يعملان offline
+- ✅ **مفتوح المصدر**: الكود متاح للمراجعة
+
+## 🧪 الاختبارات
+
+### اختبار خوارزمية IBAN
+الدالة `validateIBAN()` تطبق المعيار الدولي:
+1. تحقق من رمز الدولة (حرفان)
+2. تحقق من أرقام التحقق (رقمان)
+3. تحقق من الطول حسب الدولة
+4. تطبيق خوارزمية mod97
+
+### أمثلة IBANs صحيحة للاختبار
+```
+GB82WEST12345698765432
+DE89370400440532013000
+FR1420041010050500013M02606
+SA0380000000608010167519
+```
+
+## 📂 هيكل المشروع
+
+```
+src/
+├── components/
+│   ├── CameraScanner.tsx    # مكون الكاميرا والـ OCR
+│   ├── IBANResult.tsx        # عرض النتيجة
+│   └── RecordsList.tsx       # قائمة السجلات
+├── lib/
+│   ├── ibanValidator.ts      # خوارزمية التحقق
+│   └── storage.ts            # إدارة التخزين
+└── pages/
+    └── Index.tsx             # الصفحة الرئيسية
+```
+
+## 🎨 نظام التصميم
+
+### الألوان
+- **Primary**: أخضر داكن للثقة (#059669)
+- **Secondary**: أزرق للمعلومات (#2563eb)
+- **Success**: أخضر للصحيح
+- **Destructive**: أحمر للخطأ
+
+### الخطوط
+- **Cairo**: للنصوص العربية (400, 600, 700, 800)
+- **Monospace**: لعرض IBAN
+
+## 🔄 التحديثات المستقبلية
+
+- [ ] دعم QR Code للـ IBAN
+- [ ] تكامل مع Firebase للنسخ الاحتياطي
+- [ ] إضافة إحصائيات ورسوم بيانية
+- [ ] دعم iOS
+- [ ] وضع Offline كامل
+- [ ] مسح دفعات من الصور
+
+## 📞 الدعم
+
+للأسئلة والمشاكل التقنية:
+- اقرأ ملف `CAPACITOR_SETUP.md`
+- راجع [Capacitor Docs](https://capacitorjs.com/docs)
+- تواصل عبر issues في GitHub
+
+## 📄 الترخيص
+
+هذا المشروع مبني على Lovable.
+
+## 🙏 شكر خاص
+
+- **Lovable**: منصة التطوير
+- **Tesseract.js**: محرك OCR
+- **Capacitor**: تحويل لتطبيق أصلي
+- **shadcn/ui**: مكتبة المكونات
+
+---
+
+**مطور بحب** ❤️ **باستخدام Lovable**
+
+</div>
