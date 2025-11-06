@@ -67,21 +67,7 @@ export function extractIBANFromText(text: string): string | null {
   // Remove all whitespace and convert to uppercase
   const cleanedText = text.replace(/\s+/g, '').toUpperCase();
   
-  // Try original text first
-  const ibanRegex = /[A-Z]{2}[0-9]{2}[A-Z0-9]{4,30}/g;
-  let matches = cleanedText.match(ibanRegex);
-  
-  if (matches && matches.length > 0) {
-    // Return the first match that passes validation
-    for (const match of matches) {
-      const validation = validateIBAN(match);
-      if (validation.isValid) {
-        return match;
-      }
-    }
-  }
-  
-  // Apply comprehensive OCR error corrections with more patterns
+  // Apply comprehensive OCR error corrections first
   const corrections = [
     { from: /O/g, to: '0' },
     { from: /Q/g, to: '0' },
@@ -97,34 +83,55 @@ export function extractIBANFromText(text: string): string | null {
     { from: /T/g, to: '7' },
   ];
   
+  // Try with both original and corrected text
+  const textsToTry = [cleanedText];
   let correctedText = cleanedText;
   for (const { from, to } of corrections) {
     correctedText = correctedText.replace(from, to);
   }
+  textsToTry.push(correctedText);
   
-  matches = correctedText.match(ibanRegex);
-  
-  if (matches && matches.length > 0) {
-    for (const match of matches) {
-      const validation = validateIBAN(match);
-      if (validation.isValid) {
-        return match;
-      }
-    }
+  // Extract potential IBANs and try all valid lengths for each country code
+  for (const textToSearch of textsToTry) {
+    // Find country code patterns
+    const countryCodeRegex = /[A-Z]{2}[0-9]{2}[A-Z0-9]+/g;
+    const potentialMatches = textToSearch.match(countryCodeRegex);
     
-    // Try generating variations for each match to fix potential remaining errors
-    for (const match of matches) {
-      const variations = generateIBANVariations(match);
-      for (const variation of variations) {
-        const validation = validateIBAN(variation);
-        if (validation.isValid) {
-          return variation;
+    if (potentialMatches && potentialMatches.length > 0) {
+      for (const potential of potentialMatches) {
+        const countryCode = potential.substring(0, 2);
+        const expectedLength = IBAN_LENGTHS[countryCode];
+        
+        if (expectedLength) {
+          // Extract exact length based on country code
+          const exactIban = potential.substring(0, expectedLength);
+          
+          // Validate the exact length IBAN
+          const validation = validateIBAN(exactIban);
+          if (validation.isValid) {
+            return exactIban;
+          }
+          
+          // Try variations for this exact length IBAN
+          const variations = generateIBANVariations(exactIban);
+          for (const variation of variations) {
+            const varValidation = validateIBAN(variation);
+            if (varValidation.isValid) {
+              return variation;
+            }
+          }
+        } else {
+          // For unknown country codes, try common lengths (18-31)
+          for (let len = 18; len <= Math.min(31, potential.length); len++) {
+            const testIban = potential.substring(0, len);
+            const validation = validateIBAN(testIban);
+            if (validation.isValid) {
+              return testIban;
+            }
+          }
         }
       }
     }
-    
-    // Return longest match for manual correction if no valid one found
-    return matches.reduce((a, b) => a.length > b.length ? a : b);
   }
   
   return null;
