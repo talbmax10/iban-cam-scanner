@@ -11,7 +11,7 @@ import { Share } from '@capacitor/share';
 
 interface IBANResultProps {
   iban: string;
-  source: 'camera' | 'gallery';
+  source: 'camera' | 'gallery' | 'manual';
   capturedImage?: string;
   onClose: () => void;
   onSaved: () => void;

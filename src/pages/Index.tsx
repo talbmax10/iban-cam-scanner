@@ -1,24 +1,26 @@
 import { useState } from 'react';
-import { Camera, History, Info } from 'lucide-react';
+import { Camera, History, Info, Globe } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import CameraScanner from '@/components/CameraScanner';
+import { BrowserCameraScanner } from '@/components/BrowserCameraScanner';
 import IBANResult from '@/components/IBANResult';
 import RecordsList from '@/components/RecordsList';
 import { getAllRecords } from '@/lib/storage';
+import { Capacitor } from '@capacitor/core';
 
 type Screen = 'home' | 'scanner' | 'result' | 'records';
 
 const Index = () => {
   const [currentScreen, setCurrentScreen] = useState<Screen>('home');
   const [scannedIBAN, setScannedIBAN] = useState('');
-  const [ibanSource, setIbanSource] = useState<'camera' | 'gallery'>('camera');
+  const [ibanSource, setIbanSource] = useState<'camera' | 'gallery' | 'manual'>('camera');
   const [capturedImage, setCapturedImage] = useState<string>();
   const [refreshRecords, setRefreshRecords] = useState(0);
 
   const recentRecords = getAllRecords().slice(0, 3);
 
-  const handleIBANDetected = (iban: string, source: 'camera' | 'gallery', image?: string) => {
+  const handleIBANDetected = (iban: string, source: 'camera' | 'gallery' | 'manual', image?: string) => {
     setScannedIBAN(iban);
     setIbanSource(source);
     setCapturedImage(image);
@@ -30,9 +32,17 @@ const Index = () => {
     setCurrentScreen('home');
   };
 
+  // Check if running as native app or web
+  const isNative = Capacitor.isNativePlatform();
+
   if (currentScreen === 'scanner') {
-    return (
+    return isNative ? (
       <CameraScanner
+        onIBANDetected={handleIBANDetected}
+        onClose={() => setCurrentScreen('home')}
+      />
+    ) : (
+      <BrowserCameraScanner
         onIBANDetected={handleIBANDetected}
         onClose={() => setCurrentScreen('home')}
       />
@@ -83,8 +93,8 @@ const Index = () => {
             onClick={() => setCurrentScreen('scanner')}
             className="w-full h-16 text-lg font-bold shadow-lg"
           >
-            <Camera className="w-6 h-6 ml-3" />
-            مسح IBAN جديد
+            {isNative ? <Camera className="w-6 h-6 ml-3" /> : <Globe className="w-6 h-6 ml-3" />}
+            مسح IBAN جديد {!isNative && '(متصفح)'}
           </Button>
 
           <Button

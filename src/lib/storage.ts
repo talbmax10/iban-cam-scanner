@@ -8,7 +8,7 @@ export interface IBANRecord {
   ownerName: string;
   isValid: boolean;
   timestamp: number;
-  source: 'camera' | 'gallery';
+  source: 'camera' | 'gallery' | 'manual';
   errorMessage?: string;
   countryCode?: string;
 }
@@ -78,7 +78,7 @@ export function exportToCSV(records: IBANRecord[]): string {
     r.iban,
     r.ownerName || '-',
     r.isValid ? 'صحيح' : 'غير صحيح',
-    r.source === 'camera' ? 'كاميرا' : 'معرض',
+    r.source === 'camera' ? 'كاميرا' : r.source === 'gallery' ? 'معرض' : 'يدوي',
     new Date(r.timestamp).toLocaleString('ar-SA')
   ]);
   
