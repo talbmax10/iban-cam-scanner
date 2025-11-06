@@ -1,10 +1,12 @@
-import { useState, useRef } from 'react';
-import { Camera as CameraIcon, Upload, X, Loader2 } from 'lucide-react';
+import { useState, useRef, useEffect } from 'react';
+import { Camera as CameraIcon, Upload, X, Loader2, Video } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import Tesseract from 'tesseract.js';
 import { extractIBANFromText } from '@/lib/ibanValidator';
+import { Camera } from '@capacitor/camera';
+import { CameraResultType, CameraSource } from '@capacitor/camera';
 
 interface CameraScannerProps {
   onIBANDetected: (iban: string, source: 'camera' | 'gallery') => void;
@@ -14,15 +16,26 @@ interface CameraScannerProps {
 const CameraScanner = ({ onIBANDetected, onClose }: CameraScannerProps) => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [progress, setProgress] = useState(0);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [isLiveMode, setIsLiveMode] = useState(false);
+  const [lastScanTime, setLastScanTime] = useState(0);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+  const scanIntervalRef = useRef<number | null>(null);
   const { toast } = useToast();
 
-  const processImage = async (imageFile: File, source: 'camera' | 'gallery') => {
+  useEffect(() => {
+    return () => {
+      stopLiveMode();
+    };
+  }, []);
+
+  const processImage = async (imageData: string, source: 'camera' | 'gallery') => {
     setIsProcessing(true);
     setProgress(0);
 
     try {
-      const result = await Tesseract.recognize(imageFile, 'eng', {
+      const result = await Tesseract.recognize(imageData, 'eng', {
         logger: (m) => {
           if (m.status === 'recognizing text') {
             setProgress(Math.round(m.progress * 100));
@@ -57,16 +70,109 @@ const CameraScanner = ({ onIBANDetected, onClose }: CameraScannerProps) => {
     }
   };
 
-  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (file) {
-      processImage(file, 'gallery');
+  const startLiveMode = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: 'environment' }
+      });
+      
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+        streamRef.current = stream;
+        setIsLiveMode(true);
+        
+        // بدء المسح كل 2 ثانية
+        scanIntervalRef.current = window.setInterval(() => {
+          captureAndProcessFrame();
+        }, 2000);
+      }
+    } catch (error) {
+      console.error('Camera error:', error);
+      toast({
+        title: 'خطأ في الكاميرا',
+        description: 'لا يمكن الوصول إلى الكاميرا. تأكد من منح الأذونات.',
+        variant: 'destructive',
+      });
     }
   };
 
-  const handleCameraCapture = () => {
-    if (fileInputRef.current) {
-      fileInputRef.current.click();
+  const stopLiveMode = () => {
+    if (scanIntervalRef.current) {
+      clearInterval(scanIntervalRef.current);
+      scanIntervalRef.current = null;
+    }
+    
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(track => track.stop());
+      streamRef.current = null;
+    }
+    
+    setIsLiveMode(false);
+  };
+
+  const captureAndProcessFrame = async () => {
+    if (!videoRef.current || !canvasRef.current || isProcessing) return;
+    
+    const now = Date.now();
+    if (now - lastScanTime < 2000) return;
+    
+    setLastScanTime(now);
+    
+    const video = videoRef.current;
+    const canvas = canvasRef.current;
+    const context = canvas.getContext('2d');
+    
+    if (!context) return;
+    
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    context.drawImage(video, 0, 0);
+    
+    const imageData = canvas.toDataURL('image/png');
+    await processImage(imageData, 'camera');
+  };
+
+  const handleCameraCapture = async () => {
+    try {
+      const image = await Camera.getPhoto({
+        quality: 90,
+        allowEditing: false,
+        resultType: CameraResultType.DataUrl,
+        source: CameraSource.Camera,
+      });
+
+      if (image.dataUrl) {
+        await processImage(image.dataUrl, 'camera');
+      }
+    } catch (error) {
+      console.error('Camera capture error:', error);
+      toast({
+        title: 'خطأ في التقاط الصورة',
+        description: 'حدث خطأ أثناء التقاط الصورة. حاول مرة أخرى.',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const handleGalleryPick = async () => {
+    try {
+      const image = await Camera.getPhoto({
+        quality: 90,
+        allowEditing: false,
+        resultType: CameraResultType.DataUrl,
+        source: CameraSource.Photos,
+      });
+
+      if (image.dataUrl) {
+        await processImage(image.dataUrl, 'gallery');
+      }
+    } catch (error) {
+      console.error('Gallery pick error:', error);
+      toast({
+        title: 'خطأ في اختيار الصورة',
+        description: 'حدث خطأ أثناء اختيار الصورة. حاول مرة أخرى.',
+        variant: 'destructive',
+      });
     }
   };
 
@@ -78,7 +184,10 @@ const CameraScanner = ({ onIBANDetected, onClose }: CameraScannerProps) => {
           <Button
             variant="ghost"
             size="icon"
-            onClick={onClose}
+            onClick={() => {
+              stopLiveMode();
+              onClose();
+            }}
             disabled={isProcessing}
           >
             <X className="w-5 h-5" />
@@ -86,15 +195,39 @@ const CameraScanner = ({ onIBANDetected, onClose }: CameraScannerProps) => {
         </div>
 
         <div className="space-y-4">
-          <div className="bg-muted/50 rounded-lg p-8 text-center border-2 border-dashed border-border">
-            <CameraIcon className="w-16 h-16 mx-auto mb-4 text-muted-foreground" />
-            <p className="text-sm text-muted-foreground mb-2">
-              ضع المستند بشكل واضح في الإطار
-            </p>
-            <p className="text-xs text-muted-foreground">
-              تأكد من الإضاءة الجيدة ووضوح النص
-            </p>
-          </div>
+          {isLiveMode ? (
+            <div className="relative bg-black rounded-lg overflow-hidden">
+              <video
+                ref={videoRef}
+                autoPlay
+                playsInline
+                className="w-full h-64 object-cover"
+              />
+              <canvas ref={canvasRef} className="hidden" />
+              <div className="absolute inset-0 border-4 border-primary/50 pointer-events-none">
+                <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-4/5 h-24 border-2 border-accent rounded-lg" />
+              </div>
+              <div className="absolute bottom-4 left-0 right-0 flex justify-center gap-2">
+                <Button
+                  onClick={stopLiveMode}
+                  variant="destructive"
+                  size="sm"
+                >
+                  إيقاف المسح
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <div className="bg-muted/50 rounded-lg p-8 text-center border-2 border-dashed border-border">
+              <CameraIcon className="w-16 h-16 mx-auto mb-4 text-muted-foreground" />
+              <p className="text-sm text-muted-foreground mb-2">
+                ضع المستند بشكل واضح في الإطار
+              </p>
+              <p className="text-xs text-muted-foreground">
+                تأكد من الإضاءة الجيدة ووضوح النص
+              </p>
+            </div>
+          )}
 
           {isProcessing && (
             <div className="space-y-2">
@@ -114,37 +247,40 @@ const CameraScanner = ({ onIBANDetected, onClose }: CameraScannerProps) => {
             </div>
           )}
 
-          <div className="grid grid-cols-2 gap-3">
-            <Button
-              onClick={handleCameraCapture}
-              disabled={isProcessing}
-              size="lg"
-              className="w-full"
-            >
-              <CameraIcon className="w-5 h-5 ml-2" />
-              التقط صورة
-            </Button>
-            
-            <Button
-              variant="outline"
-              onClick={() => fileInputRef.current?.click()}
-              disabled={isProcessing}
-              size="lg"
-              className="w-full"
-            >
-              <Upload className="w-5 h-5 ml-2" />
-              اختر من المعرض
-            </Button>
-          </div>
-
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="image/*"
-            capture="environment"
-            onChange={handleFileSelect}
-            className="hidden"
-          />
+          {!isLiveMode && (
+            <div className="grid grid-cols-2 gap-3">
+              <Button
+                onClick={startLiveMode}
+                disabled={isProcessing}
+                size="lg"
+                className="w-full col-span-2"
+              >
+                <Video className="w-5 h-5 ml-2" />
+                مسح فوري بالكاميرا
+              </Button>
+              
+              <Button
+                onClick={handleCameraCapture}
+                disabled={isProcessing}
+                size="lg"
+                className="w-full"
+              >
+                <CameraIcon className="w-5 h-5 ml-2" />
+                التقط صورة
+              </Button>
+              
+              <Button
+                variant="outline"
+                onClick={handleGalleryPick}
+                disabled={isProcessing}
+                size="lg"
+                className="w-full"
+              >
+                <Upload className="w-5 h-5 ml-2" />
+                اختر من المعرض
+              </Button>
+            </div>
+          )}
         </div>
 
         <div className="bg-accent/10 rounded-lg p-4 space-y-2">
