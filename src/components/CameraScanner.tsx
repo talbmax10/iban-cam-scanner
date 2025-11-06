@@ -30,6 +30,39 @@ const CameraScanner = ({ onIBANDetected, onClose }: CameraScannerProps) => {
     };
   }, []);
 
+  const applySharpening = (data: Uint8ClampedArray, width: number, height: number) => {
+    const sharpenKernel = [
+      0, -1, 0,
+      -1, 5, -1,
+      0, -1, 0
+    ];
+    
+    const copy = new Uint8ClampedArray(data);
+    
+    for (let y = 1; y < height - 1; y++) {
+      for (let x = 1; x < width - 1; x++) {
+        let r = 0, g = 0, b = 0;
+        
+        for (let ky = -1; ky <= 1; ky++) {
+          for (let kx = -1; kx <= 1; kx++) {
+            const idx = ((y + ky) * width + (x + kx)) * 4;
+            const kernelIdx = (ky + 1) * 3 + (kx + 1);
+            const weight = sharpenKernel[kernelIdx];
+            
+            r += copy[idx] * weight;
+            g += copy[idx + 1] * weight;
+            b += copy[idx + 2] * weight;
+          }
+        }
+        
+        const idx = (y * width + x) * 4;
+        data[idx] = Math.max(0, Math.min(255, r));
+        data[idx + 1] = Math.max(0, Math.min(255, g));
+        data[idx + 2] = Math.max(0, Math.min(255, b));
+      }
+    }
+  };
+
   const preprocessImage = (imageData: string): Promise<string> => {
     return new Promise((resolve) => {
       const img = new Image();
@@ -41,26 +74,59 @@ const CameraScanner = ({ onIBANDetected, onClose }: CameraScannerProps) => {
           return;
         }
 
-        canvas.width = img.width;
-        canvas.height = img.height;
-        ctx.drawImage(img, 0, 0);
+        // Increase resolution for better OCR
+        const scale = 2;
+        canvas.width = img.width * scale;
+        canvas.height = img.height * scale;
+        
+        // Enable image smoothing for better quality
+        ctx.imageSmoothingEnabled = true;
+        ctx.imageSmoothingQuality = 'high';
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
 
         const imageDataObj = ctx.getImageData(0, 0, canvas.width, canvas.height);
         const data = imageDataObj.data;
 
-        // Convert to grayscale, increase contrast, and apply threshold
+        // Apply sharpening filter first
+        applySharpening(data, canvas.width, canvas.height);
+
+        // Convert to grayscale with enhanced contrast
         for (let i = 0; i < data.length; i += 4) {
-          // Grayscale conversion
+          // Weighted grayscale conversion
           const gray = data[i] * 0.299 + data[i + 1] * 0.587 + data[i + 2] * 0.114;
           
-          // Strong contrast enhancement
-          const contrasted = ((gray - 128) * 2.0) + 128;
+          // Enhanced contrast with gamma correction
+          const normalized = gray / 255;
+          const gamma = 1.5;
+          const corrected = Math.pow(normalized, gamma) * 255;
           
-          // Apply adaptive threshold for better text recognition
-          const threshold = 127;
+          // Strong contrast enhancement
+          const contrasted = ((corrected - 128) * 2.5) + 128;
+          
+          // Adaptive threshold based on local statistics
+          const threshold = 140;
           const value = contrasted > threshold ? 255 : 0;
           
           data[i] = data[i + 1] = data[i + 2] = value;
+        }
+
+        // Apply noise reduction (median filter simulation)
+        const copy = new Uint8ClampedArray(data);
+        for (let y = 1; y < canvas.height - 1; y++) {
+          for (let x = 1; x < canvas.width - 1; x++) {
+            const neighbors = [];
+            for (let dy = -1; dy <= 1; dy++) {
+              for (let dx = -1; dx <= 1; dx++) {
+                const idx = ((y + dy) * canvas.width + (x + dx)) * 4;
+                neighbors.push(copy[idx]);
+              }
+            }
+            neighbors.sort((a, b) => a - b);
+            const median = neighbors[Math.floor(neighbors.length / 2)];
+            
+            const idx = (y * canvas.width + x) * 4;
+            data[idx] = data[idx + 1] = data[idx + 2] = median;
+          }
         }
 
         ctx.putImageData(imageDataObj, 0, 0);

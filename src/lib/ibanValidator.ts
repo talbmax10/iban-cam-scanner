@@ -27,6 +27,40 @@ export function cleanIBAN(input: string): string {
 }
 
 /**
+ * توليد تنويعات من IBAN بتجربة استبدالات شائعة لأخطاء OCR
+ */
+function generateIBANVariations(iban: string): string[] {
+  const variations = [iban];
+  const confusions = [
+    ['0', 'O', 'Q', 'D'],
+    ['1', 'I', 'L', '|'],
+    ['5', 'S'],
+    ['8', 'B'],
+    ['6', 'G'],
+    ['7', 'T'],
+  ];
+  
+  // توليد تنويعات محدودة لتجنب مشاكل الأداء
+  for (let i = 2; i < iban.length && variations.length < 15; i++) {
+    const char = iban[i];
+    for (const group of confusions) {
+      if (group.includes(char)) {
+        for (const alt of group) {
+          if (alt !== char) {
+            const variation = iban.substring(0, i) + alt + iban.substring(i + 1);
+            variations.push(variation);
+            if (variations.length >= 15) break;
+          }
+        }
+        break;
+      }
+    }
+  }
+  
+  return variations;
+}
+
+/**
  * استخراج IBAN من نص باستخدام Regex مع تصحيح أخطاء OCR الشائعة
  */
 export function extractIBANFromText(text: string): string | null {
@@ -47,18 +81,26 @@ export function extractIBANFromText(text: string): string | null {
     }
   }
   
-  // Apply comprehensive OCR error corrections
-  let correctedText = cleanedText
-    .replace(/O/g, '0')  // O -> 0
-    .replace(/Q/g, '0')  // Q -> 0
-    .replace(/D/g, '0')  // D -> 0
-    .replace(/I/g, '1')  // I -> 1
-    .replace(/L/g, '1')  // L -> 1
-    .replace(/\|/g, '1') // | -> 1
-    .replace(/S/g, '5')  // S -> 5
-    .replace(/Z/g, '2')  // Z -> 2
-    .replace(/B/g, '8')  // B -> 8
-    .replace(/G/g, '6'); // G -> 6
+  // Apply comprehensive OCR error corrections with more patterns
+  const corrections = [
+    { from: /O/g, to: '0' },
+    { from: /Q/g, to: '0' },
+    { from: /D/g, to: '0' },
+    { from: /I/g, to: '1' },
+    { from: /L/g, to: '1' },
+    { from: /\|/g, to: '1' },
+    { from: /l/g, to: '1' },
+    { from: /S/g, to: '5' },
+    { from: /Z/g, to: '2' },
+    { from: /B/g, to: '8' },
+    { from: /G/g, to: '6' },
+    { from: /T/g, to: '7' },
+  ];
+  
+  let correctedText = cleanedText;
+  for (const { from, to } of corrections) {
+    correctedText = correctedText.replace(from, to);
+  }
   
   matches = correctedText.match(ibanRegex);
   
@@ -69,6 +111,18 @@ export function extractIBANFromText(text: string): string | null {
         return match;
       }
     }
+    
+    // Try generating variations for each match to fix potential remaining errors
+    for (const match of matches) {
+      const variations = generateIBANVariations(match);
+      for (const variation of variations) {
+        const validation = validateIBAN(variation);
+        if (validation.isValid) {
+          return variation;
+        }
+      }
+    }
+    
     // Return longest match for manual correction if no valid one found
     return matches.reduce((a, b) => a.length > b.length ? a : b);
   }
