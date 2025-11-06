@@ -30,12 +30,49 @@ const CameraScanner = ({ onIBANDetected, onClose }: CameraScannerProps) => {
     };
   }, []);
 
+  const preprocessImage = (imageData: string): Promise<string> => {
+    return new Promise((resolve) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+          resolve(imageData);
+          return;
+        }
+
+        canvas.width = img.width;
+        canvas.height = img.height;
+        ctx.drawImage(img, 0, 0);
+
+        const imageDataObj = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        const data = imageDataObj.data;
+
+        // Convert to grayscale and increase contrast
+        for (let i = 0; i < data.length; i += 4) {
+          const gray = data[i] * 0.299 + data[i + 1] * 0.587 + data[i + 2] * 0.114;
+          // Increase contrast
+          const contrasted = ((gray - 128) * 1.5) + 128;
+          const value = Math.max(0, Math.min(255, contrasted));
+          data[i] = data[i + 1] = data[i + 2] = value;
+        }
+
+        ctx.putImageData(imageDataObj, 0, 0);
+        resolve(canvas.toDataURL('image/png'));
+      };
+      img.src = imageData;
+    });
+  };
+
   const processImage = async (imageData: string, source: 'camera' | 'gallery') => {
     setIsProcessing(true);
     setProgress(0);
 
     try {
-      const result = await Tesseract.recognize(imageData, 'eng', {
+      // Preprocess image for better OCR
+      const processedImage = await preprocessImage(imageData);
+      
+      const result = await Tesseract.recognize(processedImage, 'eng+ara', {
         logger: (m) => {
           if (m.status === 'recognizing text') {
             setProgress(Math.round(m.progress * 100));

@@ -27,19 +27,47 @@ export function cleanIBAN(input: string): string {
 }
 
 /**
- * استخراج IBAN من نص باستخدام Regex
+ * استخراج IBAN من نص باستخدام Regex مع تصحيح أخطاء OCR الشائعة
  */
 export function extractIBANFromText(text: string): string | null {
-  const cleaned = text.toUpperCase().replace(/\s+/g, '');
+  // Remove all whitespace and convert to uppercase
+  const cleanedText = text.replace(/\s+/g, '').toUpperCase();
   
-  // البحث عن نمط IBAN: حرفين + رقمين + 4-30 حرف/رقم
-  const ibanPattern = /([A-Z]{2}[0-9]{2}[A-Z0-9]{4,30})/g;
-  const matches = cleaned.match(ibanPattern);
+  // Try original text first
+  const ibanRegex = /[A-Z]{2}[0-9]{2}[A-Z0-9]{4,30}/g;
+  let matches = cleanedText.match(ibanRegex);
   
-  if (!matches || matches.length === 0) return null;
+  if (matches && matches.length > 0) {
+    // Return the first match that passes validation
+    for (const match of matches) {
+      const validation = validateIBAN(match);
+      if (validation.isValid) {
+        return match;
+      }
+    }
+  }
   
-  // إرجاع أول تطابق
-  return matches[0];
+  // Apply OCR error corrections and try again
+  let correctedText = cleanedText
+    .replace(/O/g, '0')  // O -> 0
+    .replace(/I/g, '1')  // I -> 1  
+    .replace(/S/g, '5')  // S -> 5
+    .replace(/Z/g, '2'); // Z -> 2
+  
+  matches = correctedText.match(ibanRegex);
+  
+  if (matches && matches.length > 0) {
+    for (const match of matches) {
+      const validation = validateIBAN(match);
+      if (validation.isValid) {
+        return match;
+      }
+    }
+    // Return longest match for manual correction if no valid one found
+    return matches.reduce((a, b) => a.length > b.length ? a : b);
+  }
+  
+  return null;
 }
 
 /**
