@@ -47,12 +47,18 @@ export function extractIBANFromText(text: string): string | null {
     }
   }
   
-  // Apply OCR error corrections and try again
+  // Apply comprehensive OCR error corrections
   let correctedText = cleanedText
     .replace(/O/g, '0')  // O -> 0
-    .replace(/I/g, '1')  // I -> 1  
+    .replace(/Q/g, '0')  // Q -> 0
+    .replace(/D/g, '0')  // D -> 0
+    .replace(/I/g, '1')  // I -> 1
+    .replace(/L/g, '1')  // L -> 1
+    .replace(/\|/g, '1') // | -> 1
     .replace(/S/g, '5')  // S -> 5
-    .replace(/Z/g, '2'); // Z -> 2
+    .replace(/Z/g, '2')  // Z -> 2
+    .replace(/B/g, '8')  // B -> 8
+    .replace(/G/g, '6'); // G -> 6
   
   matches = correctedText.match(ibanRegex);
   

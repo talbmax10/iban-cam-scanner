@@ -12,11 +12,12 @@ import { Share } from '@capacitor/share';
 interface IBANResultProps {
   iban: string;
   source: 'camera' | 'gallery';
+  capturedImage?: string;
   onClose: () => void;
   onSaved: () => void;
 }
 
-const IBANResult = ({ iban, source, onClose, onSaved }: IBANResultProps) => {
+const IBANResult = ({ iban, source, capturedImage, onClose, onSaved }: IBANResultProps) => {
   const [ownerName, setOwnerName] = useState('');
   const [editedIBAN, setEditedIBAN] = useState(iban);
   const [isEditing, setIsEditing] = useState(false);
@@ -106,6 +107,19 @@ const IBANResult = ({ iban, source, onClose, onSaved }: IBANResultProps) => {
             </p>
           </div>
         </div>
+
+        {capturedImage && (
+          <div className="space-y-2">
+            <Label>الصورة الملتقطة</Label>
+            <div className="bg-muted rounded-lg overflow-hidden border-2 border-border">
+              <img 
+                src={capturedImage} 
+                alt="Captured document" 
+                className="w-full h-auto object-contain max-h-64"
+              />
+            </div>
+          </div>
+        )}
 
         <div className="space-y-4">
           <div>

@@ -9,7 +9,7 @@ import { Camera } from '@capacitor/camera';
 import { CameraResultType, CameraSource } from '@capacitor/camera';
 
 interface CameraScannerProps {
-  onIBANDetected: (iban: string, source: 'camera' | 'gallery') => void;
+  onIBANDetected: (iban: string, source: 'camera' | 'gallery', capturedImage?: string) => void;
   onClose: () => void;
 }
 
@@ -48,12 +48,18 @@ const CameraScanner = ({ onIBANDetected, onClose }: CameraScannerProps) => {
         const imageDataObj = ctx.getImageData(0, 0, canvas.width, canvas.height);
         const data = imageDataObj.data;
 
-        // Convert to grayscale and increase contrast
+        // Convert to grayscale, increase contrast, and apply threshold
         for (let i = 0; i < data.length; i += 4) {
+          // Grayscale conversion
           const gray = data[i] * 0.299 + data[i + 1] * 0.587 + data[i + 2] * 0.114;
-          // Increase contrast
-          const contrasted = ((gray - 128) * 1.5) + 128;
-          const value = Math.max(0, Math.min(255, contrasted));
+          
+          // Strong contrast enhancement
+          const contrasted = ((gray - 128) * 2.0) + 128;
+          
+          // Apply adaptive threshold for better text recognition
+          const threshold = 127;
+          const value = contrasted > threshold ? 255 : 0;
+          
           data[i] = data[i + 1] = data[i + 2] = value;
         }
 
@@ -86,7 +92,7 @@ const CameraScanner = ({ onIBANDetected, onClose }: CameraScannerProps) => {
       const iban = extractIBANFromText(extractedText);
 
       if (iban) {
-        onIBANDetected(iban, source);
+        onIBANDetected(iban, source, imageData);
       } else {
         toast({
           title: 'لم يتم العثور على IBAN',

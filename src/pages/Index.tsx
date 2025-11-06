@@ -13,13 +13,15 @@ const Index = () => {
   const [currentScreen, setCurrentScreen] = useState<Screen>('home');
   const [scannedIBAN, setScannedIBAN] = useState('');
   const [ibanSource, setIbanSource] = useState<'camera' | 'gallery'>('camera');
+  const [capturedImage, setCapturedImage] = useState<string>();
   const [refreshRecords, setRefreshRecords] = useState(0);
 
   const recentRecords = getAllRecords().slice(0, 3);
 
-  const handleIBANDetected = (iban: string, source: 'camera' | 'gallery') => {
+  const handleIBANDetected = (iban: string, source: 'camera' | 'gallery', image?: string) => {
     setScannedIBAN(iban);
     setIbanSource(source);
+    setCapturedImage(image);
     setCurrentScreen('result');
   };
 
@@ -42,6 +44,7 @@ const Index = () => {
       <IBANResult
         iban={scannedIBAN}
         source={ibanSource}
+        capturedImage={capturedImage}
         onClose={() => setCurrentScreen('home')}
         onSaved={handleRecordSaved}
       />
