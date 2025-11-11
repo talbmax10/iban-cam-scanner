@@ -1,12 +1,12 @@
 import { useState, useRef, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { Camera, X, FlipHorizontal } from 'lucide-react';
+import { Camera, X, FlipHorizontal, Upload } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import Tesseract from 'tesseract.js';
 import { extractIBANFromText } from '@/lib/ibanValidator';
 
 interface BrowserCameraScannerProps {
-  onIBANDetected: (iban: string, source: 'camera' | 'manual', imageData?: string) => void;
+  onIBANDetected: (iban: string, source: 'camera' | 'gallery' | 'manual', imageData?: string) => void;
   onClose: () => void;
 }
 
@@ -16,6 +16,7 @@ export function BrowserCameraScanner({ onIBANDetected, onClose }: BrowserCameraS
   const [facingMode, setFacingMode] = useState<'user' | 'environment'>('environment');
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const galleryInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -151,6 +152,84 @@ export function BrowserCameraScanner({ onIBANDetected, onClose }: BrowserCameraS
     return canvas.toDataURL();
   };
 
+  const processImageFromFile = async (file: File, source: 'camera' | 'gallery') => {
+    setIsScanning(true);
+
+    try {
+      const reader = new FileReader();
+      reader.onload = async (e) => {
+        const imageDataUrl = e.target?.result as string;
+        
+        if (!canvasRef.current) return;
+        
+        const img = new Image();
+        img.onload = async () => {
+          const canvas = canvasRef.current!;
+          canvas.width = img.width;
+          canvas.height = img.height;
+          
+          const ctx = canvas.getContext('2d');
+          if (!ctx) throw new Error('Cannot get canvas context');
+
+          ctx.drawImage(img, 0, 0);
+          
+          const processedImageUrl = preprocessImage(canvas);
+          const originalImageUrl = canvas.toDataURL();
+
+          toast({
+            title: "جاري المعالجة...",
+            description: "يتم الآن تحليل الصورة والبحث عن IBAN",
+          });
+
+          const result = await Tesseract.recognize(
+            processedImageUrl,
+            'eng',
+            {
+              logger: () => {
+                // Progress tracking disabled for security
+              }
+            }
+          );
+
+          const text = result.data.text;
+          const iban = extractIBANFromText(text);
+
+          if (iban) {
+            toast({
+              title: "تم العثور على IBAN!",
+              description: `تم اكتشاف: ${iban}`,
+            });
+            onIBANDetected(iban, source, originalImageUrl);
+          } else {
+            toast({
+              title: "لم يتم العثور على IBAN",
+              description: "حاول التقاط صورة أوضح أو أدخل IBAN يدوياً",
+              variant: "destructive"
+            });
+          }
+          
+          setIsScanning(false);
+        };
+        img.src = imageDataUrl;
+      };
+      reader.readAsDataURL(file);
+    } catch (error) {
+      toast({
+        title: "خطأ في المعالجة",
+        description: "حدث خطأ أثناء معالجة الصورة",
+        variant: "destructive"
+      });
+      setIsScanning(false);
+    }
+  };
+
+  const handleGalleryPick = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      processImageFromFile(file, 'gallery');
+    }
+  };
+
   const captureAndProcess = async () => {
     if (!videoRef.current || !canvasRef.current) return;
 
@@ -251,18 +330,37 @@ export function BrowserCameraScanner({ onIBANDetected, onClose }: BrowserCameraS
         </div>
       </div>
 
-      <div className="p-6 border-t bg-background">
-        <Button
-          onClick={captureAndProcess}
-          disabled={isScanning || !stream}
-          className="w-full"
-          size="lg"
-        >
-          <Camera className="mr-2 h-5 w-5" />
-          {isScanning ? 'جاري المعالجة...' : 'التقاط ومسح'}
-        </Button>
-        <p className="text-center text-sm text-muted-foreground mt-3">
-          ضع بطاقة IBAN في الإطار والتقط صورة واضحة
+      <div className="p-6 border-t bg-background space-y-3">
+        <div className="grid grid-cols-2 gap-3">
+          <Button
+            onClick={captureAndProcess}
+            disabled={isScanning || !stream}
+            className="w-full"
+            size="lg"
+          >
+            <Camera className="mr-2 h-5 w-5" />
+            التقط
+          </Button>
+          <Button
+            onClick={() => galleryInputRef.current?.click()}
+            disabled={isScanning}
+            variant="outline"
+            className="w-full"
+            size="lg"
+          >
+            <Upload className="mr-2 h-5 w-5" />
+            المعرض
+          </Button>
+        </div>
+        <input
+          ref={galleryInputRef}
+          type="file"
+          accept="image/*"
+          onChange={handleGalleryPick}
+          className="hidden"
+        />
+        <p className="text-center text-sm text-muted-foreground">
+          التقط صورة أو اختر من المعرض
         </p>
       </div>
     </div>
