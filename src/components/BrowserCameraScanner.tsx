@@ -40,7 +40,6 @@ export function BrowserCameraScanner({ onIBANDetected, onClose }: BrowserCameraS
         videoRef.current.srcObject = mediaStream;
       }
     } catch (error) {
-      console.error('Error accessing camera:', error);
       toast({
         title: "خطأ في الكاميرا",
         description: "لا يمكن الوصول إلى الكاميرا. تأكد من منح الإذن.",
@@ -181,17 +180,13 @@ export function BrowserCameraScanner({ onIBANDetected, onClose }: BrowserCameraS
         processedImageUrl,
         'eng',
         {
-          logger: (m) => {
-            if (m.status === 'recognizing text') {
-              console.log(`Progress: ${Math.round(m.progress * 100)}%`);
-            }
+          logger: () => {
+            // Progress tracking disabled for security
           }
         }
       );
 
       const text = result.data.text;
-      console.log('Detected text:', text);
-
       const iban = extractIBANFromText(text);
 
       if (iban) {
@@ -208,7 +203,6 @@ export function BrowserCameraScanner({ onIBANDetected, onClose }: BrowserCameraS
         });
       }
     } catch (error) {
-      console.error('Error processing image:', error);
       toast({
         title: "خطأ في المعالجة",
         description: "حدث خطأ أثناء معالجة الصورة",

@@ -19,11 +19,41 @@ interface IBANResultProps {
 
 const IBANResult = ({ iban, source, capturedImage, onClose, onSaved }: IBANResultProps) => {
   const [ownerName, setOwnerName] = useState('');
+  const [ownerNameError, setOwnerNameError] = useState('');
   const [editedIBAN, setEditedIBAN] = useState(iban);
   const [isEditing, setIsEditing] = useState(false);
   const { toast } = useToast();
 
   const validation = validateIBAN(editedIBAN);
+
+  const validateOwnerName = (name: string): boolean => {
+    const trimmed = name.trim();
+    
+    if (trimmed.length === 0) {
+      setOwnerNameError('');
+      return true;
+    }
+    
+    if (trimmed.length > 100) {
+      setOwnerNameError('الاسم يجب أن يكون أقل من 100 حرف');
+      return false;
+    }
+    
+    // Allow Arabic, English letters, spaces, and basic punctuation
+    const validPattern = /^[\u0600-\u06FFa-zA-Z\s\-.']+$/;
+    if (!validPattern.test(trimmed)) {
+      setOwnerNameError('الاسم يحتوي على أحرف غير مسموح بها');
+      return false;
+    }
+    
+    setOwnerNameError('');
+    return true;
+  };
+
+  const handleOwnerNameChange = (value: string) => {
+    setOwnerName(value);
+    validateOwnerName(value);
+  };
 
   const handleCopy = async () => {
     try {
@@ -42,6 +72,15 @@ const IBANResult = ({ iban, source, capturedImage, onClose, onSaved }: IBANResul
   };
 
   const handleSave = () => {
+    if (!validateOwnerName(ownerName)) {
+      toast({
+        title: 'خطأ في البيانات',
+        description: ownerNameError,
+        variant: 'destructive',
+      });
+      return;
+    }
+
     const record = saveIBANRecord({
       iban: editedIBAN,
       ownerName: ownerName.trim(),
@@ -153,10 +192,17 @@ const IBANResult = ({ iban, source, capturedImage, onClose, onSaved }: IBANResul
             <Input
               id="ownerName"
               value={ownerName}
-              onChange={(e) => setOwnerName(e.target.value)}
+              onChange={(e) => handleOwnerNameChange(e.target.value)}
               placeholder="أدخل اسم صاحب الحساب"
               className="mt-2"
+              maxLength={100}
             />
+            {ownerNameError && (
+              <p className="text-sm text-destructive mt-1">{ownerNameError}</p>
+            )}
+            <p className="text-xs text-muted-foreground mt-1">
+              الحد الأقصى: 100 حرف
+            </p>
           </div>
 
           {!validation.isValid && validation.error && (
