@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
-import { getAllRecords, deleteRecord, searchRecords, exportToCSV, IBANRecord } from '@/lib/storage';
+import { getAllRecords, deleteRecord, searchRecords, exportToCSV, IBANRecord } from '@/lib/dbStorage';
 import { formatIBANForDisplay } from '@/lib/ibanValidator';
 
 interface RecordsListProps {
@@ -14,26 +14,42 @@ interface RecordsListProps {
 
 const RecordsList = ({ onClose, refreshTrigger }: RecordsListProps) => {
   const [searchQuery, setSearchQuery] = useState('');
-  const [records, setRecords] = useState<IBANRecord[]>(getAllRecords());
+  const [records, setRecords] = useState<IBANRecord[]>([]);
   const { toast } = useToast();
 
-  // Update records when refreshTrigger changes
+  // Load records on mount and when refreshTrigger changes
   useEffect(() => {
-    setRecords(getAllRecords());
+    loadRecords();
   }, [refreshTrigger]);
 
-  const handleSearch = (query: string) => {
+  const loadRecords = async () => {
+    const { data } = await getAllRecords();
+    setRecords(data);
+  };
+
+  const handleSearch = async (query: string) => {
     setSearchQuery(query);
     if (query.trim()) {
-      setRecords(searchRecords(query));
+      const { data } = await searchRecords(query);
+      setRecords(data);
     } else {
-      setRecords(getAllRecords());
+      await loadRecords();
     }
   };
 
-  const handleDelete = (id: string) => {
-    deleteRecord(id);
-    setRecords(getAllRecords());
+  const handleDelete = async (id: string) => {
+    const { error } = await deleteRecord(id);
+    
+    if (error) {
+      toast({
+        title: 'خطأ',
+        description: 'حدث خطأ أثناء حذف السجل',
+        variant: 'destructive'
+      });
+      return;
+    }
+
+    await loadRecords();
     toast({
       title: 'تم الحذف',
       description: 'تم حذف السجل بنجاح',
@@ -98,7 +114,7 @@ const RecordsList = ({ onClose, refreshTrigger }: RecordsListProps) => {
                 <div className="flex items-start justify-between gap-4">
                   <div className="flex-1 space-y-2">
                     <div className="flex items-center gap-2">
-                      {record.isValid ? (
+                      {record.is_valid ? (
                         <CheckCircle2 className="w-5 h-5 text-success flex-shrink-0" />
                       ) : (
                         <XCircle className="w-5 h-5 text-destructive flex-shrink-0" />
@@ -108,29 +124,29 @@ const RecordsList = ({ onClose, refreshTrigger }: RecordsListProps) => {
                       </span>
                     </div>
                     
-                    {record.ownerName && (
+                    {record.owner_name && (
                       <p className="text-sm text-muted-foreground">
-                        المالك: {record.ownerName}
+                        المالك: {record.owner_name}
                       </p>
                     )}
 
                     <div className="flex items-center gap-4 text-xs text-muted-foreground">
                       <span>
-                        {new Date(record.timestamp).toLocaleDateString('ar-SA')}
+                        {new Date(record.created_at).toLocaleDateString('ar-SA')}
                       </span>
                       <span>
                         {record.source === 'camera' ? '📷 كاميرا' : '🖼️ معرض'}
                       </span>
-                      {record.countryCode && (
+                      {record.country_code && (
                         <span className="font-semibold">
-                          {record.countryCode}
+                          {record.country_code}
                         </span>
                       )}
                     </div>
 
-                    {!record.isValid && record.errorMessage && (
+                    {!record.is_valid && record.error_message && (
                       <p className="text-xs text-destructive">
-                        {record.errorMessage}
+                        {record.error_message}
                       </p>
                     )}
                   </div>

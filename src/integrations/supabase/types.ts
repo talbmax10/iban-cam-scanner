@@ -14,7 +14,66 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      iban_records: {
+        Row: {
+          country_code: string | null
+          created_at: string
+          error_message: string | null
+          iban: string
+          id: string
+          is_valid: boolean
+          owner_name: string | null
+          source: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          country_code?: string | null
+          created_at?: string
+          error_message?: string | null
+          iban: string
+          id?: string
+          is_valid?: boolean
+          owner_name?: string | null
+          source: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          country_code?: string | null
+          created_at?: string
+          error_message?: string | null
+          iban?: string
+          id?: string
+          is_valid?: boolean
+          owner_name?: string | null
+          source?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          created_at: string
+          email: string | null
+          id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          email?: string | null
+          id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          email?: string | null
+          id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { validateIBAN, formatIBANForDisplay } from '@/lib/ibanValidator';
-import { saveIBANRecord } from '@/lib/storage';
+import { saveIBANRecord } from '@/lib/dbStorage';
 import { Share } from '@capacitor/share';
 
 interface IBANResultProps {
@@ -71,7 +71,7 @@ const IBANResult = ({ iban, source, capturedImage, onClose, onSaved }: IBANResul
     }
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!validateOwnerName(ownerName)) {
       toast({
         title: 'خطأ في البيانات',
@@ -81,7 +81,7 @@ const IBANResult = ({ iban, source, capturedImage, onClose, onSaved }: IBANResul
       return;
     }
 
-    const record = saveIBANRecord({
+    const { error } = await saveIBANRecord({
       iban: editedIBAN,
       ownerName: ownerName.trim(),
       isValid: validation.isValid,
@@ -89,6 +89,15 @@ const IBANResult = ({ iban, source, capturedImage, onClose, onSaved }: IBANResul
       errorMessage: validation.error,
       countryCode: editedIBAN.substring(0, 2),
     });
+
+    if (error) {
+      toast({
+        title: 'خطأ في الحفظ',
+        description: 'حدث خطأ أثناء حفظ السجل',
+        variant: 'destructive',
+      });
+      return;
+    }
 
     toast({
       title: 'تم الحفظ',

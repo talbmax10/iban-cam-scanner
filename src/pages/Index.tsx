@@ -1,13 +1,14 @@
-import { useState } from 'react';
-import { Camera, History, Info, Globe } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Camera, History, Info, Globe, LogOut } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import CameraScanner from '@/components/CameraScanner';
 import { BrowserCameraScanner } from '@/components/BrowserCameraScanner';
 import IBANResult from '@/components/IBANResult';
 import RecordsList from '@/components/RecordsList';
-import { getAllRecords } from '@/lib/storage';
+import { getAllRecords } from '@/lib/dbStorage';
 import { Capacitor } from '@capacitor/core';
+import { useAuth } from '@/contexts/AuthContext';
 
 type Screen = 'home' | 'scanner' | 'result' | 'records';
 
@@ -17,8 +18,17 @@ const Index = () => {
   const [ibanSource, setIbanSource] = useState<'camera' | 'gallery' | 'manual'>('camera');
   const [capturedImage, setCapturedImage] = useState<string>();
   const [refreshRecords, setRefreshRecords] = useState(0);
+  const [recentRecords, setRecentRecords] = useState<any[]>([]);
+  const { signOut, user } = useAuth();
 
-  const recentRecords = getAllRecords().slice(0, 3);
+  useEffect(() => {
+    loadRecentRecords();
+  }, [refreshRecords]);
+
+  const loadRecentRecords = async () => {
+    const { data } = await getAllRecords();
+    setRecentRecords(data.slice(0, 3));
+  };
 
   const handleIBANDetected = (iban: string, source: 'camera' | 'gallery' | 'manual', image?: string) => {
     setScannedIBAN(iban);
@@ -73,8 +83,24 @@ const Index = () => {
   return (
     <div className="min-h-screen bg-gradient-to-b from-background to-muted/30">
       <div className="max-w-md mx-auto p-6 space-y-8">
-        {/* Header */}
-        <div className="text-center space-y-2 pt-8">
+        {/* Header with Logout */}
+        <div className="flex items-center justify-between pt-4">
+          <div className="text-sm text-muted-foreground">
+            {user?.email}
+          </div>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={signOut}
+            className="gap-2"
+          >
+            <LogOut className="w-4 h-4" />
+            خروج
+          </Button>
+        </div>
+
+        {/* App Title */}
+        <div className="text-center space-y-2">
           <div className="inline-flex items-center justify-center w-20 h-20 rounded-2xl bg-gradient-to-br from-primary to-accent mb-4">
             <Camera className="w-10 h-10 text-primary-foreground" />
           </div>
@@ -122,14 +148,14 @@ const Index = () => {
                     <p className="font-mono text-sm truncate" dir="ltr">
                       {record.iban}
                     </p>
-                    {record.ownerName && (
+                    {record.owner_name && (
                       <p className="text-xs text-muted-foreground truncate">
-                        {record.ownerName}
+                        {record.owner_name}
                       </p>
                     )}
                   </div>
-                  <span className={`text-2xl ${record.isValid ? '' : 'opacity-50'}`}>
-                    {record.isValid ? '✅' : '❌'}
+                  <span className={`text-2xl ${record.is_valid ? '' : 'opacity-50'}`}>
+                    {record.is_valid ? '✅' : '❌'}
                   </span>
                 </div>
               ))}
@@ -163,7 +189,7 @@ const Index = () => {
 
         {/* Footer */}
         <div className="text-center text-xs text-muted-foreground pt-4">
-          <p>جميع البيانات محفوظة محلياً على جهازك</p>
+          <p>جميع البيانات محفوظة بأمان في السحابة</p>
           <p className="mt-1">نحترم خصوصيتك وأمان معلوماتك 🔒</p>
         </div>
       </div>
