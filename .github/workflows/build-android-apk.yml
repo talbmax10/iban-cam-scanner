@@ -30,11 +30,11 @@ jobs:
       - name: Ensure Android platform
         run: |
           if [ ! -d android ]; then
-            npx --yes -p @capacitor/cli@7 cap add android
+            npx cap add android
           fi
 
       - name: Sync Capacitor project
-        run: npx --yes -p @capacitor/cli@7 cap sync android
+        run: npx cap sync android
 
       - name: Setup Java
         uses: actions/setup-java@v4
